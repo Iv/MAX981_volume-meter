@@ -9,10 +9,8 @@
 
 
 constexpr uint8_t BTN0 = 0;
-
 constexpr uint8_t RELAY1 = 16;
 constexpr uint8_t RELAY2 = 17;
-
 constexpr uint8_t LED = 23;
 
 #undef LED_BUILTIN

@@ -97,7 +97,7 @@ void setup() {
 
   onboard_btn.setPressMs(500);
   onboard_btn.attachClick(btn0_click);
-  onboard_btn.attachPress(btn0_pressed);
+  onboard_btn.attachLongPressStart(btn0_pressed);
 
   print_ticker.start();
 
