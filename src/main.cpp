@@ -4,13 +4,72 @@
 #include <math.h>
 #include <mic.h>
 
+
 #include "OneButton.h"
+#include "Ticker.h"
 
 esp_adc_cal_characteristics_t adc_chars;
 float silence_level_adc = 0;
 OneButton onboard_btn(BTN0, false, false);
+bool led_flag = false;
+
+volatile MIC_SIGNAL mic_signal;
 
 
+void btn0_click() {
+  Serial.println("btn0_click");
+}
+
+void btn0_pressed() {
+  Serial.println("btn0_pressed");
+}
+
+void codeForCore1Task(void *parameter) {
+  unsigned long start_time = millis();
+  unsigned long samples_collected = 0;
+  float max_voltage = 0;
+  float sum_voltage_squared = 0;
+
+  for (;;) {
+    // Сбор данных за 1 секунду
+    while (millis() - start_time < 1000) {
+      const int raw_value = adc1_get_raw(MIC_PIN);
+
+      // Преобразуем в напряжение и вычитаем смещение 1.25V
+      const float voltage = (raw_value / ADC_RESOLUTION) * REFERENCE_VOLTAGE;
+      const float signal_voltage = voltage - MAX9814_BIAS;  // Используем правильное смещение!
+
+      sum_voltage_squared += signal_voltage * signal_voltage;
+      if (fabs(signal_voltage) > max_voltage) {
+        max_voltage = fabs(signal_voltage);
+      }
+
+      samples_collected++;
+      delayMicroseconds(1000000 / SAMPLE_RATE);
+    }
+
+    // Вычисляем RMS напряжение сигнала
+    mic_signal.rms_voltage = sqrt(sum_voltage_squared / samples_collected);
+    // Преобразуем в dB
+    mic_signal.avg_dB = voltage_to_dB(mic_signal.rms_voltage);
+    mic_signal.peak_dB = voltage_to_dB(max_voltage);
+
+  }
+}
+
+void print_val() {
+  Serial.printf("%lu\t%.1f\t\t%.1f\t%.1f\t%+.1f\n",
+              millis()/1000,
+              mic_signal.avg_dB,
+              mic_signal.avg_dB,
+              mic_signal.rms_voltage*1000,  // RMS в mV
+              (mic_signal.rms_voltage * 1000) - 12.5);  // Отклонение от 12.5mV
+
+  digitalWrite(LED_BUILTIN, led_flag);
+  led_flag = !led_flag;
+}
+
+Ticker print_ticker(print_val, 1000);
 
 void setup() {
   Serial.begin(115200);
@@ -34,47 +93,27 @@ void setup() {
 
   digitalWrite(RELAY1, LOW);
   digitalWrite(RELAY2, LOW);
+  onboard_btn.attachClick(btn0_click);
+  onboard_btn.attachClick(btn0_pressed);
+
+  print_ticker.start();
+
+  xTaskCreatePinnedToCore(
+    codeForCore1Task, // Function to implement the task
+    "Core1Task",      // Name of the task (for debugging)
+    10000,            // Stack size in words
+    NULL,             // Task input parameter (not used here)
+    1,                // Priority of the task (0 is lowest)
+    NULL,             // Task handle (not used here)
+    1                 // Core where the task should run (Core 1)
+  );
 }
 
-bool led_flag = false;
+
+
 
 void loop() {
-  unsigned long start_time = millis();
-  unsigned long samples_collected = 0;
-  float max_voltage = 0;
-  float sum_voltage_squared = 0;
-  
-  // Сбор данных за 1 секунду
-  while (millis() - start_time < 1000) {
-    const int raw_value = adc1_get_raw(MIC_PIN);
-    
-    // Преобразуем в напряжение и вычитаем смещение 1.25V
-    const float voltage = (raw_value / ADC_RESOLUTION) * REFERENCE_VOLTAGE;
-    const float signal_voltage = voltage - MAX9814_BIAS;  // Используем правильное смещение!
-    
-    sum_voltage_squared += signal_voltage * signal_voltage;
-    if (fabs(signal_voltage) > max_voltage) {
-      max_voltage = fabs(signal_voltage);
-    }
-    
-    samples_collected++;
-    delayMicroseconds(1000000 / SAMPLE_RATE);
-  }
-  digitalWrite(LED_BUILTIN, led_flag);
-  led_flag = !led_flag;
-  
-  // Вычисляем RMS напряжение сигнала
-  float rms_voltage = sqrt(sum_voltage_squared / samples_collected);
-  
-  // Преобразуем в dB
-  float avg_dB = voltage_to_dB(rms_voltage);
-  float peak_dB = voltage_to_dB(max_voltage);
-  
-  // Выводим результаты в милливольтах для наглядности
-  Serial.printf("%lu\t%.1f\t\t%.1f\t%.1f\t%+.1f\n", 
-                millis()/1000, avg_dB, peak_dB, 
-                rms_voltage * 1000,  // RMS в mV
-                (rms_voltage * 1000) - 12.5);  // Отклонение от 12.5mV
+
   
   // Перекалибровка по команде
   if (Serial.available() > 0) {
@@ -85,4 +124,7 @@ void loop() {
       Serial.println("------------------------------------------------");
     }
   }
+
+  onboard_btn.tick();
+  print_ticker.update();
 }
