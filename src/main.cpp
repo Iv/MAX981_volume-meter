@@ -10,8 +10,9 @@
 
 esp_adc_cal_characteristics_t adc_chars;
 float silence_level_adc = 0;
-OneButton onboard_btn(BTN0, false, false);
 bool led_flag = false;
+OneButton onboard_btn(BTN0, true, true);
+
 
 volatile MIC_SIGNAL mic_signal;
 
@@ -93,6 +94,8 @@ void setup() {
 
   digitalWrite(RELAY1, LOW);
   digitalWrite(RELAY2, LOW);
+
+  onboard_btn.setPressMs(500);
   onboard_btn.attachClick(btn0_click);
   onboard_btn.attachClick(btn0_pressed);
 
