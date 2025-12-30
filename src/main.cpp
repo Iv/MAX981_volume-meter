@@ -9,6 +9,7 @@
 // Конфигурация ADC
 // #define MIC_PIN ADC1_CHANNEL_1
 
+esp_adc_cal_characteristics_t adc_chars;
 float silence_level_adc = 0;
 OneButton onboard_btn(BTN0, false, false);
 

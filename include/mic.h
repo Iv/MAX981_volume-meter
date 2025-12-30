@@ -9,8 +9,6 @@
 #include <esp_adc_cal.h>
 #include <config.h>
 
-esp_adc_cal_characteristics_t adc_chars;
-
 float calibrate_silence(float &silence_level);
 float voltage_to_dB(float voltage_rms);
 
