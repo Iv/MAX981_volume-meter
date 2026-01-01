@@ -21,7 +21,7 @@ constexpr uint8_t LED = 23;
 #define MIC_PIN ADC1_CHANNEL_4
 
 
-#define ADC_WIDTH ADC_WIDTH_BIT_12
+#define ADC_WIDTH ADC_BITWIDTH_12
 #define ADC_ATTEN ADC_ATTEN_DB_12
 #define SAMPLE_RATE 8000
 #define REFERENCE_VOLTAGE 3.1f
@@ -31,5 +31,6 @@ constexpr uint8_t LED = 23;
 #define MAX9814_BIAS 1.25f  // Смещение 1.25V вместо 1.65V!
 #define SENSITIVITY_MV_PER_PA 12.5f  // 12.5 mV/Pa для усиления 60dB
 
+#define DEFAULT_VOLUME_THRESHOLD 70.0f
 
 #endif //ESP32_MIC_RELAY_CONFIG_H

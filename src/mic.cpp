@@ -1,9 +1,15 @@
 #include <mic.h>
 
-void setup_adc(esp_adc_cal_characteristics_t *chars) {
-    adc1_config_width(ADC_WIDTH);
+void setup_adc(adc_cali_handle_t *handle) {
+    adc1_config_width(ADC_WIDTH_BIT_12);
     adc1_config_channel_atten(MIC_PIN, ADC_ATTEN);
-    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN, ADC_WIDTH, 1100, chars);
+
+    adc_cali_line_fitting_config_t cali_config = {
+        .unit_id = ADC_UNIT_1,
+        .atten = ADC_ATTEN,
+        .bitwidth = ADC_WIDTH,
+    };
+    adc_cali_create_scheme_line_fitting(&cali_config, handle);
 }
 
 float calibrate_silence(float &silence_level) {

@@ -11,9 +11,10 @@
 #include <GyverNTP.h>
 #include <WiFiManager.h>
 
-esp_adc_cal_characteristics_t adc_chars;
+adc_cali_handle_t adc_cali_handle = nullptr;
 float silence_level_adc = 0;
 bool led_flag = false;
+float volume_threshold = 0;
 
 OneButton onboard_btn(BTN0, true, true);
 
@@ -21,20 +22,22 @@ Preferences preferences;
 WiFiManager wm;
 
 
-uint32_t long_press_start = 0;
 bool time_error = true;
 
 volatile MIC_SIGNAL mic_signal;
 
 
 void btn0_click() {
-  Serial.println("btn0_click");
+  volume_threshold = mic_signal.avg_dB;
+  preferences.begin("config", false);
+  preferences.putFloat("vt", volume_threshold);
+  preferences.end();
+
+  Serial.printf("Volume threshold %.1f", volume_threshold);
 }
 
 void btn0_pressed() {
-  long_press_start = millis();
   digitalWrite(LED_BUILTIN, LOW);
-
   wm.resetSettings();
 }
 
@@ -42,7 +45,6 @@ void btn0_during_long_press() {
 }
 
 void btn0_long_press_release() {
-  long_press_start = 0;
 }
 
 void print_val() {
@@ -56,7 +58,18 @@ void print_val() {
               (mic_signal.rms_voltage * 1000) - 12.5);  // Отклонение от 12.5mV
 
   led_flag = !led_flag;
-  if (!time_error)  digitalWrite(LED_BUILTIN, led_flag);
+  bool relay = LOW;
+
+  if (!time_error) {
+    digitalWrite(LED_BUILTIN, led_flag);
+    if (mic_signal.avg_dB > volume_threshold) {
+      Serial.println("Volume exceeded threshold!!!!");
+      Datime dt = NTP;
+      if (!time_error && (dt.hour < 8 | dt.hour >=23)) relay = HIGH;
+    }
+  }
+
+  digitalWrite(RELAY1, relay);
 }
 
 Ticker print_ticker(print_val, 1000);
@@ -117,7 +130,7 @@ void setup() {
 
   // preferences.begin("mic");
 
-  setup_adc(&adc_chars);
+  setup_adc(&adc_cali_handle);
   const float measured_bias = calibrate_silence(silence_level_adc);
   
   // Проверяем, насколько измерение соответствует спецификации
@@ -176,6 +189,10 @@ void setup() {
   NTP.asyncMode(false);                // выключить асинхронный режим
   // NTP.ignorePing(true);                // не учитывать пинг до сервера
   // NTP.updateNow();                     // обновить прямо сейчас
+
+  preferences.begin("config", true);
+  volume_threshold = preferences.getFloat("vt", DEFAULT_VOLUME_THRESHOLD);
+  preferences.end();
 }
 
 

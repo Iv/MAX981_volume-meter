@@ -6,9 +6,8 @@
 #define MAX981_VOLUME_METER_MIC_H
 
 #include <driver/adc.h>
-#include <esp_adc_cal.h>
-// #include <esp_adc/adc_cali.h>
-// #include <esp_adc/adc_cali_scheme.h>
+#include <esp_adc/adc_cali.h>
+#include <esp_adc/adc_cali_scheme.h>
 
 #include <config.h>
 
@@ -21,6 +20,6 @@ typedef struct {
 float calibrate_silence(float &silence_level);
 float voltage_to_dB(float voltage_rms);
 
-void setup_adc(esp_adc_cal_characteristics_t *chars);
+void setup_adc(adc_cali_handle_t *handle);
 
 #endif //MAX981_VOLUME_METER_MIC_H
