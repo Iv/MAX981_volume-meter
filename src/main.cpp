@@ -104,10 +104,6 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
 
-  // WiFi.begin(WIFI_SSID, WIFI_PASS);
-  // while (WiFi.status() != WL_CONNECTED) delay(100);
-
-
   // reset settings - wipe stored credentials for testing
   // these are stored by the esp library
   // wm.resetSettings();
