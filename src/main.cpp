@@ -9,7 +9,7 @@
 #include <mic.h>
 
 #include <GyverNTP.h>
-
+#include <WiFiManager.h>
 
 esp_adc_cal_characteristics_t adc_chars;
 float silence_level_adc = 0;
@@ -18,6 +18,9 @@ OneButton onboard_btn(BTN0, true, true);
 
 constexpr uint16_t config_portal_timeout = 3000;
 constexpr uint16_t btn0_long_press_timeout = 3000;
+
+Preferences preferences;
+WiFiManager wm;
 
 
 uint32_t long_press_start = 0;
@@ -34,6 +37,8 @@ void btn0_pressed() {
   during_long_press = true;
   long_press_start = millis();
   digitalWrite(LED_BUILTIN, LOW);
+
+  wm.resetSettings();
 }
 
 void btn0_during_long_press() {
@@ -94,14 +99,38 @@ void codeForCore1Task(void *parameter) {
     mic_signal.peak_dB = voltage_to_dB(max_voltage);
   }
 }
-Preferences preferences;
 
 void setup() {
   Serial.begin(115200);
   delay(1000);
 
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  while (WiFi.status() != WL_CONNECTED) delay(100);
+  // WiFi.begin(WIFI_SSID, WIFI_PASS);
+  // while (WiFi.status() != WL_CONNECTED) delay(100);
+
+
+  // reset settings - wipe stored credentials for testing
+  // these are stored by the esp library
+  // wm.resetSettings();
+
+  // Automatically connect using saved credentials,
+  // if connection fails, it starts an access point with the specified name ( "AutoConnectAP"),
+  // if empty will auto generate SSID, if password is blank it will be anonymous AP (wm.autoConnect())
+  // then goes into a blocking loop awaiting configuration and will return success result
+
+  bool res = false;
+  // res = wm.autoConnect(); // auto generated AP name from chipid
+  // res = wm.autoConnect("AutoConnectAP"); // anonymous ap
+  res = wm.autoConnect("Mic_Relay"); // password protected ap
+
+  if(!res) {
+    Serial.println("Failed to connect");
+    // ESP.restart();
+  }
+  else {
+    //if you get here you have connected to the WiFi
+    Serial.println("connected...yeey :)");
+  }
+
 
 
   Serial.println("\n=== Измерение громкости с MAX9814 (смещение 1.25V) ===");
