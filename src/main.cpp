@@ -1,18 +1,27 @@
 #include <Arduino.h>
 
-#include <config.h>
 #include <math.h>
-#include <mic.h>
-
-
 #include "OneButton.h"
 #include "Ticker.h"
+#include <Preferences.h>
+
+#include <config.h>
+#include <mic.h>
+
+#include <GyverNTP.h>
+
 
 esp_adc_cal_characteristics_t adc_chars;
 float silence_level_adc = 0;
 bool led_flag = false;
 OneButton onboard_btn(BTN0, true, true);
 
+constexpr uint16_t config_portal_timeout = 3000;
+constexpr uint16_t btn0_long_press_timeout = 3000;
+
+
+uint32_t long_press_start = 0;
+bool during_long_press = false;
 
 volatile MIC_SIGNAL mic_signal;
 
@@ -22,7 +31,21 @@ void btn0_click() {
 }
 
 void btn0_pressed() {
-  Serial.println("btn0_pressed");
+  during_long_press = true;
+  long_press_start = millis();
+  digitalWrite(LED_BUILTIN, LOW);
+}
+
+void btn0_during_long_press() {
+  if (millis() - long_press_start > btn0_long_press_timeout) {
+    digitalWrite(LED_BUILTIN, HIGH);
+
+  }
+}
+
+void btn0_long_press_release() {
+  long_press_start = 0;
+  during_long_press = false;
 }
 
 void print_val() {
@@ -33,8 +56,8 @@ void print_val() {
               mic_signal.rms_voltage*1000,  // RMS в mV
               (mic_signal.rms_voltage * 1000) - 12.5);  // Отклонение от 12.5mV
 
-  digitalWrite(LED_BUILTIN, led_flag);
   led_flag = !led_flag;
+  if (!during_long_press)  digitalWrite(LED_BUILTIN, led_flag);
 }
 
 Ticker print_ticker(print_val, 1000);
@@ -71,12 +94,20 @@ void codeForCore1Task(void *parameter) {
     mic_signal.peak_dB = voltage_to_dB(max_voltage);
   }
 }
+Preferences preferences;
 
 void setup() {
   Serial.begin(115200);
   delay(1000);
+
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  while (WiFi.status() != WL_CONNECTED) delay(100);
+
+
   Serial.println("\n=== Измерение громкости с MAX9814 (смещение 1.25V) ===");
-  
+
+  // preferences.begin("mic");
+
   setup_adc(&adc_chars);
   const float measured_bias = calibrate_silence(silence_level_adc);
   
@@ -110,6 +141,32 @@ void setup() {
     NULL,             // Task handle (not used here)
     1                 // Core where the task should run (Core 1)
   );
+
+  // обработчик ошибок
+  NTP.onError([]() {
+      Serial.println(NTP.readError());
+      Serial.print("online: ");
+      Serial.println(NTP.online());
+  });
+
+  // // обработчик секунды (вызывается из тикера)
+  // NTP.onSecond([]() {
+  //     Serial.println("new second!");
+  // });
+
+  // обработчик синхронизации (вызывается из sync)
+  // NTP.onSync([](uint32_t unix) {
+  //     Serial.println("sync: ");
+  //     Serial.print(unix);
+  // });
+
+  NTP.begin(3);                           // запустить и указать часовой пояс
+  // NTP.setPeriod(30);                   // период синхронизации в секундах
+  // NTP.setHost("ntp1.stratum2.ru");     // установить другой хост
+  // NTP.setHost(IPAddress(1, 2, 3, 4));  // установить другой хост
+  NTP.asyncMode(false);                // выключить асинхронный режим
+  // NTP.ignorePing(true);                // не учитывать пинг до сервера
+  // NTP.updateNow();                     // обновить прямо сейчас
 }
 
 
@@ -132,4 +189,22 @@ void loop() {
 
   onboard_btn.tick();
   print_ticker.update();
+
+
+  // if (NTP.tick()) {
+  //   // вывод даты и времени строкой
+  //   Serial.print(NTP.toString());  // NTP.timeToString(), NTP.dateToString()
+  //   Serial.print(':');
+  //   Serial.println(NTP.ms());  // + миллисекунды текущей секунды. Внутри tick всегда равно 0
+  // }
+
+  // if (NTP.newSecond()) {
+  //   // новую секунду можно поймать и здесь
+  // }
+
+  // изменился онлайн-статус
+  if (NTP.statusChanged()) {
+    Serial.print("STATUS: ");
+    Serial.println(NTP.online());
+  }
 }
