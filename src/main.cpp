@@ -10,11 +10,13 @@
 
 #include <GyverNTP.h>
 #include <WiFiManager.h>
+#include <utils.h>
 
 adc_cali_handle_t adc_cali_handle = nullptr;
 float silence_level_adc = 0;
 bool led_flag = false;
 float volume_threshold = 0;
+float current_volume = 0;
 
 OneButton onboard_btn(BTN0, true, true);
 
@@ -60,9 +62,12 @@ void print_val() {
   led_flag = !led_flag;
   bool relay = LOW;
 
+  // Level filter for 5 seconds.
+  current_volume = UTILS_LP_FAST(current_volume, mic_signal.avg_dB, 0.2);
+
   if (!time_error) {
     digitalWrite(LED_BUILTIN, led_flag);
-    if (mic_signal.avg_dB > volume_threshold) {
+    if (current_volume > volume_threshold) {
       Serial.println("Volume exceeded threshold!!!!");
       Datime dt = NTP;
       if (!time_error && (dt.hour < 8 | dt.hour >=23)) relay = HIGH;
