@@ -18,7 +18,7 @@ constexpr uint8_t LED = 23;
 
 // Конфигурация ADC
 // #define MIC_PIN ADC1_CHANNEL_1  // Esp32 S3 version.
-#define MIC_PIN ADC1_CHANNEL_4
+#define MIC_PIN ADC1_CHANNEL_4 // GPIO32
 
 
 #define ADC_WIDTH ADC_BITWIDTH_12

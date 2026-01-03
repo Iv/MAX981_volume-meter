@@ -49,6 +49,9 @@ void btn0_during_long_press() {
 void btn0_long_press_release() {
 }
 
+uint32_t turn_off_time = 0;
+constexpr uint32_t TURN_ON_DELAY = 600*1000;
+
 void print_val() {
   Datime dt = NTP;
 
@@ -61,6 +64,11 @@ void print_val() {
 
   led_flag = !led_flag;
   bool relay = LOW;
+  if (turn_off_time > 0 && turn_off_time + TURN_ON_DELAY < millis()) {
+    relay = HIGH;
+  } else {
+    turn_off_time = 0;
+  }
 
   // Level filter for 5 seconds.
   current_volume = UTILS_LP_FAST(current_volume, mic_signal.avg_dB, 0.2);
@@ -70,7 +78,10 @@ void print_val() {
     if (current_volume > volume_threshold) {
       Serial.println("Volume exceeded threshold!!!!");
       Datime dt = NTP;
-      if (!time_error && (dt.hour < 8 | dt.hour >=22)) relay = HIGH;
+      if (!time_error && (dt.hour < 8 | dt.hour >=22)) {
+        relay = HIGH;
+        if (turn_off_time == 0) turn_off_time = millis();
+      }
     }
   }
 
@@ -116,6 +127,15 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
 
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH);
+
+  pinMode(RELAY1, OUTPUT);
+  pinMode(RELAY2, OUTPUT);
+
+  digitalWrite(RELAY1, LOW);
+  digitalWrite(RELAY2, LOW);
+
   bool res = false;
   res = wm.autoConnect("Mic_Relay"); // password protected ap
 
@@ -145,15 +165,6 @@ void setup() {
   
   Serial.println("\nВремя\tСредн dB\tПик dB\tRMS mV\tОтклонение");
   Serial.println("------------------------------------------------");
-
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, HIGH);
-
-  pinMode(RELAY1, OUTPUT);
-  pinMode(RELAY2, OUTPUT);
-
-  digitalWrite(RELAY1, LOW);
-  digitalWrite(RELAY2, LOW);
 
   onboard_btn.setPressMs(1000);
   onboard_btn.attachClick(btn0_click);
