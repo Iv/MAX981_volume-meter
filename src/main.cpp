@@ -147,6 +147,8 @@ void setup() {
   Serial.println("------------------------------------------------");
 
   pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH);
+
   pinMode(RELAY1, OUTPUT);
   pinMode(RELAY2, OUTPUT);
 
