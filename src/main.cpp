@@ -70,7 +70,7 @@ void print_val() {
     if (current_volume > volume_threshold) {
       Serial.println("Volume exceeded threshold!!!!");
       Datime dt = NTP;
-      if (!time_error && (dt.hour < 8 | dt.hour >=23)) relay = HIGH;
+      if (!time_error && (dt.hour < 8 | dt.hour >=22)) relay = HIGH;
     }
   }
 
